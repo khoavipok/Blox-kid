@@ -1,0 +1,187 @@
+local ESPProModule = {}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local espEnabled = false
+local espObjects = {}
+local RandomID = math.random(1, 1000000)
+
+-- Hàm làm tròn số
+local function Round(num)
+    return math.floor(tonumber(num) + 0.5)
+end
+
+-- Lấy màu team
+local function getTeamColor(player)
+    if player.Team ~= LocalPlayer.Team then
+        return Color3.fromRGB(255, 0, 0) -- Enemy
+    else
+        return Color3.fromRGB(0, 0, 255) -- Teammate
+    end
+end
+
+-- Tạo ESP cho 1 player
+local function createESP(player)
+    if player == LocalPlayer then return end
+    if not player.Character then return end
+    local head = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
+    if not head then return end
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = player.Character
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = getTeamColor(player)
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = player.Character
+
+    -- Billboard
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "NameESP_" .. RandomID
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 260, 0, 50)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.Parent = head
+
+    -- Box xung quanh info
+    local box = Instance.new("Frame")
+    box.Size = UDim2.new(1, 0, 1, 0)
+    box.BackgroundTransparency = 0.5
+    box.BackgroundColor3 = getTeamColor(player)
+    box.BorderSizePixel = 1
+    box.Parent = billboard
+
+    -- Avatar
+    local avatar = Instance.new("ImageLabel")
+    avatar.Size = UDim2.new(0, 50, 0, 50)
+    avatar.Position = UDim2.new(0, 0, 0, 0)
+    avatar.BackgroundTransparency = 1
+    avatar.Image = "https://www.roblox.com/headshot-thumbnail/image?userId="..player.UserId.."&width=150&height=150&format=png"
+    avatar.Parent = billboard
+
+    -- TextLabel
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, -55, 1, 0)
+    text.Position = UDim2.new(0, 55, 0, 0)
+    text.BackgroundTransparency = 1
+    text.TextStrokeTransparency = 0.5
+    text.TextScaled = true
+    text.Font = Enum.Font.Code
+    text.TextYAlignment = Enum.TextYAlignment.Top
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.TextColor3 = getTeamColor(player)
+    text.Parent = billboard
+
+    -- Mũi tên tam giác chỉ xuống
+    local arrow = Instance.new("ImageLabel")
+    arrow.Size = UDim2.new(0, 20, 0, 20)
+    arrow.Position = UDim2.new(0.5, -10, 1, 0) -- dưới trung tâm
+    arrow.BackgroundTransparency = 1
+    arrow.Image = "rbxassetid://7072716990" -- tam giác mẫu, bạn có thể thay asset khác
+    arrow.ImageColor3 = getTeamColor(player)
+    arrow.Parent = billboard
+
+    espObjects[player] = { highlight = highlight, billboard = billboard, text = text, avatar = avatar, box = box, arrow = arrow }
+
+    -- Update thông tin liên tục
+    task.spawn(function()
+        while espEnabled and player and player.Character and espObjects[player] do
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root and localRoot then
+                local distance = Round((root.Position - localRoot.Position).Magnitude)
+                local level = (player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") and player.Data.Level.Value) or "?"
+                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                local healthPercent = humanoid and Round(humanoid.Health * 100 / humanoid.MaxHealth) or 100
+
+                espObjects[player].text.Text = string.format("%s | %s | %d M\nHealth: %d%%", level, player.Name, distance, healthPercent)
+                local teamColor = getTeamColor(player)
+                espObjects[player].text.TextColor3 = teamColor
+                espObjects[player].highlight.OutlineColor = teamColor
+                espObjects[player].box.BackgroundColor3 = teamColor
+                espObjects[player].arrow.ImageColor3 = teamColor
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
+-- Remove ESP
+local function removeESP(player)
+    if espObjects[player] then
+        for _, v in pairs(espObjects[player]) do
+            if typeof(v) == "Instance" then
+                v:Destroy()
+            end
+        end
+        espObjects[player] = nil
+    end
+end
+
+-- Bật ESP Pro
+local function enableESPPro()
+    espEnabled = true
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            createESP(p)
+        end
+    end
+    print("[ESP Pro] Đã bật ESP Player Pro")
+end
+
+-- Tắt ESP Pro
+local function disableESPPro()
+    espEnabled = false
+    for _, p in pairs(espObjects) do
+        for _, v in pairs(p) do
+            if typeof(v) == "Instance" then
+                v:Destroy()
+            end
+        end
+    end
+    espObjects = {}
+    print("[ESP Pro] Đã tắt ESP Player Pro")
+end
+
+-- API cho WindUI
+function ESPProModule:SetState(state)
+    if state then
+        enableESPPro()
+    else
+        disableESPPro()
+    end
+end
+
+function ESPProModule:IsEnabled()
+    return espEnabled
+end
+
+-- Player join/rời
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if espEnabled then
+            task.wait(1)
+            createESP(player)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
+
+-- LocalPlayer respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    if espEnabled then
+        task.wait(1)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                createESP(p)
+            end
+        end
+    end
+end)
+
+return ESPProModule
