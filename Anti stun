@@ -1,0 +1,129 @@
+local AntiStunModule = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local AntiStunEnabled = false
+local AntiStunConnection
+
+local SPEED = 16
+local JUMP = 50
+local MOVE_FORCE = 1.3
+
+local DEFAULT_SPEED = SPEED
+local DEFAULT_JUMP = JUMP
+
+local function CacheDefaults()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    DEFAULT_SPEED = hum.WalkSpeed
+    DEFAULT_JUMP = hum.JumpPower
+end
+
+local function RemoveStun(Character)
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local HRP = Character:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not HRP then return end
+
+    -- unlock states
+    Humanoid.PlatformStand = false
+    Humanoid.Sit = false
+
+    Humanoid.WalkSpeed = SPEED
+    Humanoid.JumpPower = JUMP
+
+    -- stop animations
+    local Animator = Humanoid:FindFirstChildOfClass("Animator")
+    if Animator then
+        for _, track in ipairs(Animator:GetPlayingAnimationTracks()) do
+            track:Stop()
+        end
+    end
+
+    -- remove stun physics
+    for _, v in ipairs(HRP:GetChildren()) do
+        if v:IsA("BodyVelocity") or v:IsA("BodyPosition")
+            or v:IsA("BodyAngularVelocity")
+            or v:IsA("LinearVelocity") then
+
+            v:Destroy()
+        end
+    end
+
+    -- manual movement only when enabled
+    local dir = Humanoid.MoveDirection
+    if dir.Magnitude > 0 then
+        HRP.CFrame = HRP.CFrame + (Vector3.new(dir.X,0,dir.Z).Unit * MOVE_FORCE)
+    end
+end
+
+local function EnableAntiStun()
+    CacheDefaults()
+
+    AntiStunConnection = RunService.RenderStepped:Connect(function()
+        if not AntiStunEnabled then return end
+
+        local Character = LocalPlayer.Character
+        if Character then
+            RemoveStun(Character)
+        end
+    end)
+end
+
+local function DisableAntiStun()
+    if AntiStunConnection then
+        AntiStunConnection:Disconnect()
+        AntiStunConnection = nil
+    end
+
+    -- Restore defaults
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = DEFAULT_SPEED
+        hum.JumpPower = DEFAULT_JUMP
+    end
+end
+
+-- API cho WindUI
+function AntiStunModule:SetState(state)
+    AntiStunEnabled = state
+
+    if state then
+        EnableAntiStun()
+        print("[Anti Stun] Đã bật kháng stun")
+    else
+        DisableAntiStun()
+        print("[Anti Stun] Đã tắt kháng stun")
+    end
+end
+
+function AntiStunModule:IsEnabled()
+    return AntiStunEnabled
+end
+
+-- Tự động xử lý khi character thay đổi
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    CacheDefaults()
+
+    if AntiStunEnabled then
+        DisableAntiStun()
+        EnableAntiStun()
+    end
+end)
+
+-- Khởi tạo mặc định
+if LocalPlayer.Character then
+    task.wait(1)
+    CacheDefaults()
+end
+
+return AntiStunModule
