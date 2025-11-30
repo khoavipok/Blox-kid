@@ -1,0 +1,86 @@
+local SpeedModule = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Biến điều khiển
+local IsSpeedEnabled = false
+local CurrentSpeed = 16
+local SpeedConnection = nil
+
+-- Hàm thay đổi tốc độ
+local function SetWalkSpeed(speed)
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = speed
+        end
+    end
+end
+
+-- Hàm bật speed hack
+local function EnableSpeedHack()
+    if SpeedConnection then
+        SpeedConnection:Disconnect()
+    end
+    
+    SpeedConnection = RunService.Heartbeat:Connect(function()
+        SetWalkSpeed(CurrentSpeed)
+    end)
+    
+    print("[Speed Hack] Đã bật - Tốc độ: " .. CurrentSpeed)
+end
+
+-- Hàm tắt speed hack
+local function DisableSpeedHack()
+    if SpeedConnection then
+        SpeedConnection:Disconnect()
+        SpeedConnection = nil
+    end
+    
+    SetWalkSpeed(16) -- Reset về mặc định
+    print("[Speed Hack] Đã tắt")
+end
+
+-- API cho WindUI
+function SpeedModule:SetState(state)
+    IsSpeedEnabled = state
+
+    if state then
+        EnableSpeedHack()
+    else
+        DisableSpeedHack()
+    end
+end
+
+function SpeedModule:SetSpeed(value)
+    CurrentSpeed = value
+    
+    -- Cập nhật tốc độ ngay lập tức nếu đang bật
+    if IsSpeedEnabled then
+        SetWalkSpeed(CurrentSpeed)
+    end
+    
+    print("[Speed Hack] Đã đặt tốc độ: " .. value)
+end
+
+function SpeedModule:IsEnabled()
+    return IsSpeedEnabled
+end
+
+function SpeedModule:GetCurrentSpeed()
+    return CurrentSpeed
+end
+
+-- Reset khi nhân vật chết
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if IsSpeedEnabled then
+        task.wait(1) -- Chờ character load xong
+        SetWalkSpeed(CurrentSpeed)
+    end
+end)
+
+return SpeedModule
