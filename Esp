@@ -1,0 +1,163 @@
+local ESPModule = {}
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Biến bật/tắt ESP
+local espEnabled = false
+local espObjects = {}
+local RandomID = math.random(1, 1000000)
+
+-- Hàm làm tròn số
+local function Round(num)
+    return math.floor(tonumber(num) + 0.5)
+end
+
+-- Lấy màu theo team
+local function getTeamColor(player)
+    if player.Team ~= LocalPlayer.Team then
+        return Color3.fromRGB(255, 0, 0) -- enemy
+    else
+        return Color3.fromRGB(0, 0, 255) -- teammate
+    end
+end
+
+-- Tạo ESP cho 1 player
+local function createESP(player)
+    if player == LocalPlayer then return end
+    if not player.Character then return end
+
+    local head = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
+    if not head then return end
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = player.Character
+    highlight.FillTransparency = 1
+    highlight.OutlineColor = getTeamColor(player)
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = player.Character
+
+    -- Billboard
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "NameESP_" .. RandomID
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.TextStrokeTransparency = 0.5
+    text.TextScaled = true
+    text.Font = Enum.Font.Code
+    text.TextYAlignment = Enum.TextYAlignment.Top
+    text.Parent = billboard
+
+    billboard.Parent = head
+
+    espObjects[player] = { highlight = highlight, billboard = billboard, text = text }
+
+    -- Update thông tin liên tục
+    task.spawn(function()
+        while espEnabled and player and player.Character and espObjects[player] do
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root and localRoot then
+                -- Khoảng cách
+                local distance = Round((root.Position - localRoot.Position).Magnitude)
+                -- Level nếu có Data.Level
+                local level = (player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") and player.Data.Level.Value) or "?"
+                -- Health
+                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                local healthPercent = humanoid and Round(humanoid.Health * 100 / humanoid.MaxHealth) or 100
+
+                espObjects[player].text.Text = string.format("%s | %s | %d M\nHealth: %d%%", level, player.Name, distance, healthPercent)
+                espObjects[player].text.TextColor3 = getTeamColor(player)
+                espObjects[player].highlight.OutlineColor = getTeamColor(player)
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
+-- Remove ESP
+local function removeESP(player)
+    if espObjects[player] then
+        for _, v in pairs(espObjects[player]) do
+            if typeof(v) == "Instance" then
+                v:Destroy()
+            end
+        end
+        espObjects[player] = nil
+    end
+end
+
+-- Bật ESP
+local function enableESP()
+    espEnabled = true
+    -- Tạo ESP cho người chơi hiện có
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            createESP(p)
+        end
+    end
+    print("[ESP] Đã bật ESP Player")
+end
+
+-- Tắt ESP
+local function disableESP()
+    espEnabled = false
+    -- Xóa tất cả ESP
+    for _, p in pairs(espObjects) do
+        for _, v in pairs(p) do
+            if typeof(v) == "Instance" then
+                v:Destroy()
+            end
+        end
+    end
+    espObjects = {}
+    print("[ESP] Đã tắt ESP Player")
+end
+
+-- API cho WindUI
+function ESPModule:SetState(state)
+    if state then
+        enableESP()
+    else
+        disableESP()
+    end
+end
+
+function ESPModule:IsEnabled()
+    return espEnabled
+end
+
+-- Tự động tạo/loại bỏ khi player join/rời
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if espEnabled then
+            task.wait(1)
+            createESP(player)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
+
+-- Xử lý respawn local player
+LocalPlayer.CharacterAdded:Connect(function()
+    if espEnabled then
+        task.wait(1)
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                createESP(p)
+            end
+        end
+    end
+end)
+
+return ESPModule
