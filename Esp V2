@@ -21,10 +21,26 @@ local function getTeamColor(player)
     end
 end
 
+-- Remove ESP triệt để
+local function removeESP(player)
+    if espObjects[player] then
+        for _, v in pairs(espObjects[player]) do
+            if typeof(v) == "Instance" and v.Parent then
+                v:Destroy()
+            end
+        end
+        espObjects[player] = nil
+    end
+end
+
 -- Tạo ESP cho 1 player
 local function createESP(player)
     if player == LocalPlayer then return end
     if not player.Character then return end
+    
+    -- Xóa ESP cũ nếu tồn tại
+    removeESP(player)
+    
     local head = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
     if not head then return end
 
@@ -70,53 +86,80 @@ local function createESP(player)
     -- Mũi tên tam giác chỉ xuống
     local arrow = Instance.new("ImageLabel")
     arrow.Size = UDim2.new(0, 15, 0, 15)
-    arrow.Position = UDim2.new(0.5, -7.5, 1, 0) -- dưới trung tâm
+    arrow.Position = UDim2.new(0.5, -7.5, 1, 0)
     arrow.BackgroundTransparency = 1
-    arrow.Image = "rbxassetid://7072716990" -- tam giác mẫu, bạn có thể thay asset khác
+    arrow.Image = "rbxassetid://7072716990"
     arrow.ImageColor3 = getTeamColor(player)
     arrow.Parent = billboard
 
-    espObjects[player] = { highlight = highlight, billboard = billboard, text = text, avatar = avatar, arrow = arrow }
+    espObjects[player] = { 
+        highlight = highlight, 
+        billboard = billboard, 
+        text = text, 
+        avatar = avatar, 
+        arrow = arrow 
+    }
 
     -- Update thông tin liên tục
     task.spawn(function()
-        while espEnabled and player and player.Character and espObjects[player] do
-            local root = player.Character:FindFirstChild("HumanoidRootPart")
-            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root and localRoot then
-                local distance = Round((root.Position - localRoot.Position).Magnitude)
-                local level = (player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") and player.Data.Level.Value) or "?"
-                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-                local healthPercent = humanoid and Round(humanoid.Health * 100 / humanoid.MaxHealth) or 100
+        while espEnabled and player and player.Parent and espObjects[player] do
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local root = player.Character.HumanoidRootPart
+                local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                
+                if root and localRoot then
+                    local distance = Round((root.Position - localRoot.Position).Magnitude)
+                    local level = (player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") and player.Data.Level.Value) or "?"
+                    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                    local healthPercent = humanoid and Round((humanoid.Health / humanoid.MaxHealth) * 100) or 0
 
-                espObjects[player].text.Text = string.format("%s | %s | %d M\nHealth: %d%%", level, player.Name, distance, healthPercent)
-                local teamColor = getTeamColor(player)
-                espObjects[player].text.TextColor3 = teamColor
-                espObjects[player].highlight.OutlineColor = teamColor
-                espObjects[player].arrow.ImageColor3 = teamColor
+                    if espObjects[player] and espObjects[player].text then
+                        espObjects[player].text.Text = string.format("%s | %s | %d M\nHealth: %d%%", level, player.Name, distance, healthPercent)
+                        local teamColor = getTeamColor(player)
+                        espObjects[player].text.TextColor3 = teamColor
+                        if espObjects[player].highlight then
+                            espObjects[player].highlight.OutlineColor = teamColor
+                        end
+                        if espObjects[player].arrow then
+                            espObjects[player].arrow.ImageColor3 = teamColor
+                        end
+                    end
+                end
+            else
+                -- Nếu character không tồn tại, break loop
+                break
             end
             task.wait(0.2)
         end
     end)
 end
 
--- Remove ESP
-local function removeESP(player)
-    if espObjects[player] then
-        for _, v in pairs(espObjects[player]) do
-            if typeof(v) == "Instance" then
-                v:Destroy()
-            end
+-- Xử lý character respawn
+local function setupPlayerConnections(player)
+    -- Xử lý khi character thay đổi
+    player.CharacterAdded:Connect(function(character)
+        if espEnabled then
+            -- Chờ character load hoàn tất
+            character:WaitForChild("HumanoidRootPart", 5)
+            task.wait(0.5) -- Thêm delay để đảm bảo character đã ready
+            createESP(player)
         end
-        espObjects[player] = nil
-    end
+    end)
+    
+    -- Xử lý khi character bị remove
+    player.CharacterRemoving:Connect(function()
+        removeESP(player)
+    end)
 end
 
 -- Bật ESP Pro
 local function enableESPPro()
     espEnabled = true
+    -- Setup connections cho tất cả players
     for _, p in pairs(Players:GetPlayers()) do
+        setupPlayerConnections(p)
         if p.Character then
+            task.wait(0.1)
             createESP(p)
         end
     end
@@ -126,12 +169,9 @@ end
 -- Tắt ESP Pro
 local function disableESPPro()
     espEnabled = false
-    for _, p in pairs(espObjects) do
-        for _, v in pairs(p) do
-            if typeof(v) == "Instance" then
-                v:Destroy()
-            end
-        end
+    -- Cleanup tất cả ESP
+    for player, _ in pairs(espObjects) do
+        removeESP(player)
     end
     espObjects = {}
     print("[ESP Pro] Đã tắt ESP Player Pro")
@@ -150,30 +190,39 @@ function ESPProModule:IsEnabled()
     return espEnabled
 end
 
--- Player join/rời
+-- Player join game
 Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        if espEnabled then
-            task.wait(1)
-            createESP(player)
-        end
-    end)
+    setupPlayerConnections(player)
+    if espEnabled and player.Character then
+        task.wait(1)
+        createESP(player)
+    end
 end)
 
+-- Player rời game
 Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
 -- LocalPlayer respawn
-LocalPlayer.CharacterAdded:Connect(function()
+LocalPlayer.CharacterAdded:Connect(function(character)
     if espEnabled then
+        character:WaitForChild("HumanoidRootPart", 5)
         task.wait(1)
+        -- Refresh ESP cho tất cả players
         for _, p in pairs(Players:GetPlayers()) do
-            if p.Character then
+            if p.Character and p ~= LocalPlayer then
+                removeESP(p)
+                task.wait(0.05)
                 createESP(p)
             end
         end
     end
 end)
+
+-- Setup connections cho players hiện có khi script start
+for _, p in pairs(Players:GetPlayers()) do
+    setupPlayerConnections(p)
+end
 
 return ESPProModule
