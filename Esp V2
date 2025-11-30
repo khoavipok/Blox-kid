@@ -40,31 +40,24 @@ local function createESP(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "NameESP_" .. RandomID
     billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 260, 0, 50)
+    billboard.Size = UDim2.new(0, 200, 0, 50)
     billboard.AlwaysOnTop = true
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
     billboard.Parent = head
 
-    -- Box xung quanh info
-    local box = Instance.new("Frame")
-    box.Size = UDim2.new(1, 0, 1, 0)
-    box.BackgroundTransparency = 0.5
-    box.BackgroundColor3 = getTeamColor(player)
-    box.BorderSizePixel = 1
-    box.Parent = billboard
-
     -- Avatar
     local avatar = Instance.new("ImageLabel")
-    avatar.Size = UDim2.new(0, 50, 0, 50)
+    avatar.Size = UDim2.new(0, 45, 0, 45)
     avatar.Position = UDim2.new(0, 0, 0, 0)
     avatar.BackgroundTransparency = 1
+    avatar.BorderSizePixel = 0
     avatar.Image = "https://www.roblox.com/headshot-thumbnail/image?userId="..player.UserId.."&width=150&height=150&format=png"
     avatar.Parent = billboard
 
     -- TextLabel
     local text = Instance.new("TextLabel")
-    text.Size = UDim2.new(1, -55, 1, 0)
-    text.Position = UDim2.new(0, 55, 0, 0)
+    text.Size = UDim2.new(1, -50, 1, 0)
+    text.Position = UDim2.new(0, 50, 0, 0)
     text.BackgroundTransparency = 1
     text.TextStrokeTransparency = 0.5
     text.TextScaled = true
@@ -76,14 +69,14 @@ local function createESP(player)
 
     -- Mũi tên tam giác chỉ xuống
     local arrow = Instance.new("ImageLabel")
-    arrow.Size = UDim2.new(0, 20, 0, 20)
-    arrow.Position = UDim2.new(0.5, -10, 1, 0) -- dưới trung tâm
+    arrow.Size = UDim2.new(0, 15, 0, 15)
+    arrow.Position = UDim2.new(0.5, -7.5, 1, 0) -- dưới trung tâm
     arrow.BackgroundTransparency = 1
     arrow.Image = "rbxassetid://7072716990" -- tam giác mẫu, bạn có thể thay asset khác
     arrow.ImageColor3 = getTeamColor(player)
     arrow.Parent = billboard
 
-    espObjects[player] = { highlight = highlight, billboard = billboard, text = text, avatar = avatar, box = box, arrow = arrow }
+    espObjects[player] = { highlight = highlight, billboard = billboard, text = text, avatar = avatar, arrow = arrow }
 
     -- Update thông tin liên tục
     task.spawn(function()
@@ -100,7 +93,6 @@ local function createESP(player)
                 local teamColor = getTeamColor(player)
                 espObjects[player].text.TextColor3 = teamColor
                 espObjects[player].highlight.OutlineColor = teamColor
-                espObjects[player].box.BackgroundColor3 = teamColor
                 espObjects[player].arrow.ImageColor3 = teamColor
             end
             task.wait(0.2)
