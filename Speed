@@ -5,13 +5,11 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Biến điều khiển
-local IsSpeedEnabled = false
-local CurrentSpeed = 16
-local SpeedConnection = nil
+local SpeedEnabled = false
+local WalkSpeedValue = 16
+local SpeedLoop = nil
 
--- Hàm thay đổi tốc độ
-local function SetWalkSpeed(speed)
+local function SetSpeed(speed)
     local character = LocalPlayer.Character
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -21,65 +19,64 @@ local function SetWalkSpeed(speed)
     end
 end
 
--- Hàm bật speed hack
-local function EnableSpeedHack()
-    if SpeedConnection then
-        SpeedConnection:Disconnect()
+local function StartSpeed()
+    if SpeedLoop then
+        SpeedLoop:Disconnect()
     end
-    
-    SpeedConnection = RunService.Heartbeat:Connect(function()
-        SetWalkSpeed(CurrentSpeed)
+
+    SpeedLoop = RunService.RenderStepped:Connect(function()
+        SetSpeed(WalkSpeedValue)
     end)
-    
-    print("[Speed Hack] Đã bật - Tốc độ: " .. CurrentSpeed)
 end
 
--- Hàm tắt speed hack
-local function DisableSpeedHack()
-    if SpeedConnection then
-        SpeedConnection:Disconnect()
-        SpeedConnection = nil
+local function StopSpeed()
+    if SpeedLoop then
+        SpeedLoop:Disconnect()
+        SpeedLoop = nil
     end
-    
-    SetWalkSpeed(16) -- Reset về mặc định
-    print("[Speed Hack] Đã tắt")
+
+    SetSpeed(16)
 end
 
--- API cho WindUI
 function SpeedModule:SetState(state)
-    IsSpeedEnabled = state
+    SpeedEnabled = state
 
     if state then
-        EnableSpeedHack()
+        StartSpeed()
+        print("[Speed] Đã bật - Tốc độ: " .. WalkSpeedValue)
     else
-        DisableSpeedHack()
+        StopSpeed()
+        print("[Speed] Đã tắt")
     end
 end
 
+-- Đặt tốc độ (dùng cho slider)
 function SpeedModule:SetSpeed(value)
-    CurrentSpeed = value
+    WalkSpeedValue = value
     
     -- Cập nhật tốc độ ngay lập tức nếu đang bật
-    if IsSpeedEnabled then
-        SetWalkSpeed(CurrentSpeed)
+    if SpeedEnabled then
+        SetSpeed(WalkSpeedValue)
     end
     
-    print("[Speed Hack] Đã đặt tốc độ: " .. value)
+    print("[Speed] Đã đặt tốc độ: " .. value)
 end
 
+-- Lấy trạng thái hiện tại
 function SpeedModule:IsEnabled()
-    return IsSpeedEnabled
+    return SpeedEnabled
 end
 
+-- Lấy tốc độ hiện tại
 function SpeedModule:GetCurrentSpeed()
-    return CurrentSpeed
+    return WalkSpeedValue
 end
 
--- Reset khi nhân vật chết
+-- Reset khi character respawn
 LocalPlayer.CharacterAdded:Connect(function(character)
-    if IsSpeedEnabled then
-        task.wait(1) -- Chờ character load xong
-        SetWalkSpeed(CurrentSpeed)
+    if SpeedEnabled then
+        task.wait(1)
+        SetSpeed(WalkSpeedValue)
     end
 end)
 
