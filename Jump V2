@@ -6,7 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 local JumpEnabled = false
-local JumpBoostPower = 250
+local JumpBoostPower = 1000
 local originalJumpPower = 50
 local jumpConnection = nil
 
