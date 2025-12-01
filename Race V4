@@ -1,0 +1,68 @@
+local RaceV4Module = {}
+
+local Players = game:GetService("Players")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local Player = Players.LocalPlayer
+local RaceV4Enabled = false
+local raceLoop = nil
+
+local function ActivateRaceV4()
+    VirtualInputManager:SendKeyEvent(true, "Y", false, game)
+    task.wait(0.1)
+    VirtualInputManager:SendKeyEvent(false, "Y", false, game)
+end
+
+local function StartRaceV4Loop()
+    if raceLoop then return end
+    
+    raceLoop = task.spawn(function()
+        while RaceV4Enabled do
+            task.wait(0.2)
+            pcall(function()
+                local Char = Player.Character
+                if Char then
+                    local Energy = Char:FindFirstChild("RaceEnergy")
+                    if Energy and Energy.Value == 1 then
+                        ActivateRaceV4()
+                    end
+                end
+            end)
+        end
+    end)
+    
+    print("[Race V4] Đã bật Auto Race V4")
+end
+
+local function StopRaceV4Loop()
+    RaceV4Enabled = false
+    if raceLoop then
+        task.cancel(raceLoop)
+        raceLoop = nil
+    end
+    
+    print("[Race V4] Đã tắt Auto Race V4")
+end
+
+function RaceV4Module:SetState(state)
+    if state then
+        RaceV4Enabled = true
+        StartRaceV4Loop()
+    else
+        StopRaceV4Loop()
+    end
+end
+
+function RaceV4Module:IsEnabled()
+    return RaceV4Enabled
+end
+
+Player.CharacterAdded:Connect(function()
+    if RaceV4Enabled then
+        StopRaceV4Loop()
+        task.wait(1)
+        StartRaceV4Loop()
+    end
+end)
+
+return RaceV4Module
