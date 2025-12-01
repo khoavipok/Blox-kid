@@ -1,0 +1,80 @@
+local JumpModule = {}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local JumpEnabled = false
+local JumpPowerValue = 250
+local JumpConnection = nil
+
+local function GetHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function EnableJump()
+    if JumpEnabled then return end
+    JumpEnabled = true
+
+    local hum = GetHumanoid()
+    if hum then
+        local oldJP = hum.JumpPower
+        hum.JumpPower = JumpPowerValue
+
+        JumpConnection = RunService.Heartbeat:Connect(function()
+            if hum and JumpEnabled then
+                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+
+        task.delay(0.5, function()
+            if hum then 
+                hum.JumpPower = oldJP 
+            end
+        end)
+    end
+    
+    print("[Jump Hack] Đã bật - Sức nhảy: " .. JumpPowerValue)
+end
+
+
+local function DisableJump()
+    JumpEnabled = false
+    if JumpConnection then
+        JumpConnection:Disconnect()
+        JumpConnection = nil
+    end
+    
+    print("[Jump Hack] Đã tắt")
+end
+
+function JumpModule:SetState(state)
+    if state then
+        EnableJump()
+    else
+        DisableJump()
+    end
+end
+
+function JumpModule:SetJumpPower(value)
+    JumpPowerValue = value
+    
+    if JumpEnabled then
+        DisableJump()
+        EnableJump()
+    end
+    
+    print("[Jump Hack] Đã đặt sức nhảy: " .. value)
+end
+
+function JumpModule:IsEnabled()
+    return JumpEnabled
+end
+
+function JumpModule:GetCurrentJumpPower()
+    return JumpPowerValue
+end
+
+return JumpModule
