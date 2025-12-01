@@ -1,0 +1,145 @@
+local FPSBoostModule = {}
+
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+local FpsBoostEnabled = false
+local fpsBoostConn = nil
+
+-- Lưu giá trị gốc để khôi phục
+local originalValues = {
+    Lighting = {
+        FogEnd = Lighting.FogEnd,
+        FogStart = Lighting.FogStart,
+        ClockTime = Lighting.ClockTime,
+        GlobalShadows = Lighting.GlobalShadows,
+        Brightness = Lighting.Brightness,
+        OutdoorAmbient = Lighting.OutdoorAmbient
+    },
+    Terrain = {}
+}
+
+if Terrain then
+    originalValues.Terrain = {
+        WaterWaveSize = Terrain.WaterWaveSize,
+        WaterWaveSpeed = Terrain.WaterWaveSpeed,
+        WaterReflectance = Terrain.WaterReflectance,
+        WaterTransparency = Terrain.WaterTransparency
+    }
+end
+
+local function FPSBoost()
+    -- Áp dụng cài đặt FPS Boost
+    Lighting.FogEnd = 1e9
+    Lighting.FogStart = 1e9
+    Lighting.ClockTime = 12
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 2
+    Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+
+    if Terrain then
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+    end
+
+    -- Tối ưu hóa tất cả object hiện có
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+            v.CastShadow = false
+
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+
+        elseif v:IsA("ParticleEmitter") then
+            v.Lifetime = NumberRange.new(0, 0)
+
+        elseif v:IsA("Trail") then
+            v.Lifetime = 0
+
+        elseif v:IsA("Explosion") then
+            v.BlastPressure = 1
+            v.BlastRadius = 1
+
+        elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+            v.Enabled = false
+        end
+    end
+
+    -- Ngắt kết nối cũ nếu có
+    if fpsBoostConn then
+        fpsBoostConn:Disconnect()
+    end
+
+    -- Kết nối để xử lý object mới được thêm vào
+    fpsBoostConn = Workspace.DescendantAdded:Connect(function(v)
+        task.wait(0.05)
+
+        if v:IsA("BasePart") then
+            v.CastShadow = false
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        elseif v:IsA("ParticleEmitter") then
+            v.Lifetime = NumberRange.new(0, 0)
+        elseif v:IsA("Trail") then
+            v.Lifetime = 0
+        elseif v:IsA("Explosion") then
+            v.BlastPressure = 1
+            v.BlastRadius = 1
+        elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+            v.Enabled = false
+        end
+    end)
+end
+
+local function RestoreOriginalSettings()
+    -- Khôi phục giá trị gốc của Lighting
+    for key, value in pairs(originalValues.Lighting) do
+        Lighting[key] = value
+    end
+
+    -- Khôi phục giá trị gốc của Terrain
+    if Terrain and originalValues.Terrain then
+        for key, value in pairs(originalValues.Terrain) do
+            Terrain[key] = value
+        end
+    end
+
+    -- Ngắt kết nối
+    if fpsBoostConn then
+        fpsBoostConn:Disconnect()
+        fpsBoostConn = nil
+    end
+end
+
+-- API cho WindUI
+function FPSBoostModule:SetState(state)
+    FpsBoostEnabled = state
+    
+    if state then
+        FPSBoost()
+        print("[FPS Boost] Đã bật tối ưu hóa FPS")
+    else
+        RestoreOriginalSettings()
+        print("[FPS Boost] Đã tắt, khôi phục cài đặt gốc")
+    end
+end
+
+function FPSBoostModule:IsEnabled()
+    return FpsBoostEnabled
+end
+
+-- Tự động bật lại FPS Boost khi workspace thay đổi (nếu cần)
+Workspace.DescendantAdded:Connect(function(v)
+    if FpsBoostEnabled and fpsBoostConn and v:IsA("BasePart") then
+        v.CastShadow = false
+        v.Material = Enum.Material.SmoothPlastic
+        v.Reflectance = 0
+    end
+end)
+
+return FPSBoostModule
