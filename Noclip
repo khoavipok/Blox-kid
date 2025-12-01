@@ -1,0 +1,79 @@
+local NoClipModule = {}
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+
+local NoClipEnabled = false
+local NoClipConnection = nil
+
+-- Bật NoClip
+local function EnableNoClip()
+    if NoClipEnabled then return end
+    NoClipEnabled = true
+    
+    NoClipConnection = RunService.Stepped:Connect(function()
+        local char = Player.Character
+        if char then
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.CanCollide = false
+                end
+            end
+        end
+    end)
+    
+    print("[NoClip] Đã bật NoClip")
+end
+
+-- Tắt NoClip
+local function DisableNoClip()
+    NoClipEnabled = false
+    
+    if NoClipConnection then
+        NoClipConnection:Disconnect()
+        NoClipConnection = nil
+    end
+    
+    -- Khôi phục CanCollide
+    local char = Player.Character
+    if char then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = true
+            end
+        end
+    end
+    
+    print("[NoClip] Đã tắt NoClip")
+end
+
+-- API cho WindUI
+function NoClipModule:SetState(state)
+    if state then
+        EnableNoClip()
+    else
+        DisableNoClip()
+    end
+end
+
+function NoClipModule:IsEnabled()
+    return NoClipEnabled
+end
+
+-- Tự động dọn dẹp khi character respawn
+Player.CharacterAdded:Connect(function()
+    if NoClipEnabled then
+        DisableNoClip()
+        EnableNoClip()
+    end
+end)
+
+-- Dọn dẹp khi script bị unload
+game.DescendantRemoving:Connect(function(descendant)
+    if descendant == Player and NoClipEnabled then
+        DisableNoClip()
+    end
+end)
+
+return NoClipModule
