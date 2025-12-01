@@ -1,0 +1,99 @@
+local JumpModule = {}
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local JumpEnabled = false
+local JumpBoostPower = 250
+local originalJumpPower = 50
+local jumpConnection = nil
+
+local function GetHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function CacheOriginalJumpPower()
+    local hum = GetHumanoid()
+    if hum then
+        originalJumpPower = hum.JumpPower
+    end
+end
+
+local function EnableJumpBoost()
+    if JumpEnabled then return end
+    JumpEnabled = true
+    
+    jumpConnection = UserInputService.JumpRequest:Connect(function()
+        local hum = GetHumanoid()
+        if hum then
+            local oldJP = hum.JumpPower
+            hum.JumpPower = JumpBoostPower
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+
+            task.delay(0.1, function()
+                if hum then
+                    hum.JumpPower = oldJP
+                end
+            end)
+        end
+    end)
+    
+    print("[Jump Boost] Đã bật - Sức nhảy: " .. JumpBoostPower)
+end
+
+local function DisableJumpBoost()
+    JumpEnabled = false
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
+    end
+    
+    local hum = GetHumanoid()
+    if hum then
+        hum.JumpPower = originalJumpPower
+    end
+    
+    print("[Jump Boost] Đã tắt")
+end
+
+function JumpModule:SetState(state)
+    if state then
+        CacheOriginalJumpPower()
+        EnableJumpBoost()
+    else
+        DisableJumpBoost()
+    end
+end
+
+function JumpModule:SetJumpPower(value)
+    JumpBoostPower = value
+    print("[Jump Boost] Đã đặt sức nhảy: " .. value)
+end
+
+function JumpModule:IsEnabled()
+    return JumpEnabled
+end
+
+function JumpModule:GetCurrentJumpPower()
+    return JumpBoostPower
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    CacheOriginalJumpPower()
+  
+    if JumpEnabled then
+        DisableJumpBoost()
+        EnableJumpBoost()
+    end
+end)
+
+if LocalPlayer.Character then
+    task.wait(1)
+    CacheOriginalJumpPower()
+end
+
+return JumpModule
