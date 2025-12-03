@@ -1,0 +1,50 @@
+local ObservationModule = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local commE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
+local ObservationEnabled = false
+local observationLoop = nil
+local function StartObservationLoop()
+    if observationLoop then return end
+    
+    observationLoop = task.spawn(function()
+        while ObservationEnabled do
+            task.wait()
+            pcall(function()
+                commE:FireServer("Ken", true)
+            end)
+        end
+    end)
+    print("[Observation] Đã bật Auto Haki Observation")
+end
+
+local function StopObservationLoop()
+    ObservationEnabled = false
+    if observationLoop then
+        task.cancel(observationLoop)
+        observationLoop = nil
+    end
+    print("[Observation] Đã tắt Auto Haki Observation")
+end
+
+function ObservationModule:SetState(state)
+    if state then
+        ObservationEnabled = true
+        StartObservationLoop()
+    else
+        StopObservationLoop()
+    end
+end
+
+function ObservationModule:IsEnabled()
+    return ObservationEnabled
+end
+
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+    if ObservationEnabled then
+        StopObservationLoop()
+        task.wait(1)
+        StartObservationLoop()
+    end
+end)
+
+return ObservationModule
