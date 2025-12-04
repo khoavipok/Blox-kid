@@ -1,0 +1,94 @@
+local InfiniteSoruModule = {}
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local InfiniteSoruEnabled = false
+local soruLoop = nil
+local SoruFunc = nil
+local function FindSoruFunction()
+    if SoruFunc and type(SoruFunc) == "function" then
+        return SoruFunc
+    end
+    
+    for _, v in pairs(getgc()) do
+        if type(v) == "function" then
+            local env = getfenv(v)
+            if env and env.script and env.script.Name == "Soru" 
+            and env.script:IsDescendantOf(Player.Character) then
+                SoruFunc = v
+                return v
+            end
+        end
+    end
+    return nil
+end
+local function StartInfiniteSoruLoop()
+    if soruLoop then
+        task.cancel(soruLoop)
+        soruLoop = nil
+    end
+    SoruFunc = FindSoruFunction()
+    if not SoruFunc then
+        warn("[Infinite Soru] Không tìm thấy Soru function!")
+        return
+    end
+    soruLoop = task.spawn(function()
+        while InfiniteSoruEnabled do
+            pcall(function()
+                for i = 1, 20 do
+                    local ok, uv = pcall(debug.getupvalue, SoruFunc, i)
+                    if not ok or uv == nil then break end
+
+                    if type(uv) == "table" and uv.LastUse then
+                        uv.LastUse = 0
+                        uv.LastAfter = 0
+                        setupvalue(SoruFunc, i, uv)
+                        break
+                    end
+                end
+            end)
+            task.wait(0.5)
+        end
+    end)
+    print("[Infinite Soru] Đã bật Infinite Soru")
+end
+local function StopInfiniteSoruLoop()
+    InfiniteSoruEnabled = false
+    if soruLoop then
+        task.cancel(soruLoop)
+        soruLoop = nil
+    end
+    print("[Infinite Soru] Đã tắt Infinite Soru")
+end
+function InfiniteSoruModule:SetState(state)
+    if state == InfiniteSoruEnabled then return end
+    
+    InfiniteSoruEnabled = state
+    
+    if state then
+        StartInfiniteSoruLoop()
+    else
+        StopInfiniteSoruLoop()
+    end
+end
+function InfiniteSoruModule:IsEnabled()
+    return InfiniteSoruEnabled
+end
+Player.CharacterAdded:Connect(function()
+    SoruFunc = nil
+    if InfiniteSoruEnabled then
+        StopInfiniteSoruLoop()
+        task.wait(2)
+        StartInfiniteSoruLoop()
+    end
+end)
+Player.CharacterAdded:Connect(function(character)
+    character.ChildAdded:Connect(function(child)
+        if child.Name == "Soru" and InfiniteSoruEnabled then
+            task.wait(0.5)
+            StopInfiniteSoruLoop()
+            StartInfiniteSoruLoop()
+        end
+    end)
+end)
+
+return InfiniteSoruModule
