@@ -1,50 +1,69 @@
-local ObservationModule = {}
+local BusoModule = {}
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local commE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
-local ObservationEnabled = false
-local observationLoop = nil
-local function StartObservationLoop()
-    if observationLoop then return end
+local commF_ = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+local AutoHakiBusoEnabled = false
+local busoLoop = nil
+local function StartBusoLoop()
+    if busoLoop then 
+        task.cancel(busoLoop)
+        busoLoop = nil
+    end
     
-    observationLoop = task.spawn(function()
-        while ObservationEnabled do
-            task.wait()
+    busoLoop = task.spawn(function()
+        while AutoHakiBusoEnabled do
             pcall(function()
-                commE:FireServer("Ken", true)
+                local player = Players.LocalPlayer
+                local character = player.Character
+                
+                if character and not character:FindFirstChild("HasBuso") then
+                    local args = {[1] = "Buso"}
+                    commF_:InvokeServer(unpack(args))
+                end
             end)
+            task.wait(1)
         end
     end)
-    print("[Observation] Đã bật Auto Haki Observation")
+    
+    print("[Buso] Đã bật Auto Haki Buso")
 end
 
-local function StopObservationLoop()
-    ObservationEnabled = false
-    if observationLoop then
-        task.cancel(observationLoop)
-        observationLoop = nil
+local function StopBusoLoop()
+    AutoHakiBusoEnabled = false
+    if busoLoop then
+        task.cancel(busoLoop)
+        busoLoop = nil
     end
-    print("[Observation] Đã tắt Auto Haki Observation")
+    
+    print("[Buso] Đã tắt Auto Haki Buso")
 end
 
-function ObservationModule:SetState(state)
+function BusoModule:SetState(state)
     if state then
-        ObservationEnabled = true
-        StartObservationLoop()
+        AutoHakiBusoEnabled = true
+        StartBusoLoop()
     else
-        StopObservationLoop()
+        StopBusoLoop()
     end
 end
 
-function ObservationModule:IsEnabled()
-    return ObservationEnabled
+function BusoModule:IsEnabled()
+    return AutoHakiBusoEnabled
 end
 
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
-    if ObservationEnabled then
-        StopObservationLoop()
+Players.LocalPlayer.CharacterAdded:Connect(function()
+    if AutoHakiBusoEnabled then
+        StopBusoLoop()
+        task.wait(2)
+        StartBusoLoop()
+    end
+end)
+ReplicatedStorage.DescendantAdded:Connect(function(descendant)
+    if descendant.Name == "CommF_" and AutoHakiBusoEnabled then
+        StopBusoLoop()
         task.wait(1)
-        StartObservationLoop()
+        StartBusoLoop()
     end
 end)
 
-return ObservationModule
+return BusoModule
