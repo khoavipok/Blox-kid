@@ -1,0 +1,102 @@
+local ObservationModule = {}
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+local ObservationEnabled = false
+local observationLoop = nil
+local connection = nil
+local commE = nil
+local function getCommE()
+    if not commE or not commE.Parent then
+        commE = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommE")
+    end
+    return commE
+end
+
+local function StartObservationLoop()
+    if observationLoop then
+        task.cancel(observationLoop)
+        observationLoop = nil
+    end
+    
+    getCommE()
+    
+    observationLoop = task.spawn(function()
+        while ObservationEnabled do
+            local success, result = pcall(function()
+                if not Player or not Player.Parent then
+                    return
+                end
+                
+                local character = Player.Character
+                if not character or not character.Parent then
+                    return
+                end
+                
+                local remote = getCommE()
+                if remote then
+                    remote:FireServer("Ken", true)
+                end
+            end)
+            if not success then
+                task.wait(2)
+            else
+                task.wait(0.3) 
+            end
+        end
+    end)
+    
+    print("[Observation] Đã bật Auto Haki Observation")
+end
+
+local function StopObservationLoop()
+    ObservationEnabled = false
+    
+    if observationLoop then
+        task.cancel(observationLoop)
+        observationLoop = nil
+    end
+    
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+       print("[Observation] Đã tắt Auto Haki Observation")
+end
+
+function ObservationModule:SetState(state)
+    if state == ObservationEnabled then
+        return
+    end
+    
+    ObservationEnabled = state
+    
+    if state then
+        StartObservationLoop()
+    else
+        StopObservationLoop()
+    end
+end
+
+function ObservationModule:IsEnabled()
+    return ObservationEnabled
+end
+
+connection = Player.CharacterAdded:Connect(function(character)
+    if ObservationEnabled then
+        StopObservationLoop()
+        task.wait(1.5)
+        StartObservationLoop()
+    end
+end)
+ReplicatedStorage.DescendantAdded:Connect(function(descendant)
+    if descendant.Name == "CommE" and ObservationEnabled then
+        StopObservationLoop()
+        task.wait(0.5)
+        StartObservationLoop()
+    end
+end)
+local cleanup = Instance.new("BindableEvent")
+cleanup.Event:Connect(StopObservationLoop)
+
+return ObservationModule
