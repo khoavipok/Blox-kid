@@ -3,45 +3,38 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local DodgeNoCooldownEnabled = false
 local dodgeLoop = nil
-local DodgeFunc = nil
-local function FindDodgeFunction()
-    DodgeFunc = nil
-    for _, v in next, getgc() do
-        if typeof(v) == "function" then
-            local success, env = pcall(getfenv, v)
-            if success and env and env.script == Player.Character:WaitForChild("Dodge") then
-                DodgeFunc = v
-                return true
-            end
-        end
-    end
-    return false
-end
-local function ApplyNoCooldown()
+local function NoCooldown()
     pcall(function()
-        if DodgeFunc then
-            for i, v in next, getupvalues(DodgeFunc) do
-                if tostring(v) == "0.4" then 
-                    setupvalue(DodgeFunc, i, 0)
+        for i, v in next, getgc() do
+            if typeof(v) == "function" then
+                local success, env = pcall(getfenv, v)
+                if success and env and env.script == Player.Character:WaitForChild("Dodge") then
+                    for i2, v2 in next, getupvalues(v) do
+                        if tostring(v2) == "0.4" then
+                            setupvalue(v, i2, 0)
+                        end
+                    end
                 end
             end
         end
     end)
 end
+
 local function StartDodgeLoop()
     if dodgeLoop then
         task.cancel(dodgeLoop)
         dodgeLoop = nil
     end
-    FindDodgeFunction()
+    
     dodgeLoop = task.spawn(function()
         while DodgeNoCooldownEnabled do
-            ApplyNoCooldown()
+            NoCooldown()
             task.wait(0.1)
         end
     end)
     print("[Dodge] Đã bật Dodge No Cooldown")
 end
+
 local function StopDodgeLoop()
     DodgeNoCooldownEnabled = false
     if dodgeLoop then
@@ -50,6 +43,7 @@ local function StopDodgeLoop()
     end
     print("[Dodge] Đã tắt Dodge No Cooldown")
 end
+
 function DodgeNoCooldownModule:SetState(state)
     if state == DodgeNoCooldownEnabled then return end
     DodgeNoCooldownEnabled = state
@@ -69,4 +63,5 @@ Player.CharacterAdded:Connect(function()
         StartDodgeLoop()
     end
 end)
+
 return DodgeNoCooldownModule
