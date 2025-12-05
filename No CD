@@ -3,14 +3,26 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local DodgeNoCooldownEnabled = false
 local dodgeLoop = nil
-local function NoCooldown()
+local DodgeFunc = nil
+local function FindDodgeFunction()
+    DodgeFunc = nil
+    for _, v in next, getgc() do
+        if typeof(v) == "function" then
+            local success, env = pcall(getfenv, v)
+            if success and env and env.script == Player.Character:WaitForChild("Dodge") then
+                DodgeFunc = v
+                return true
+            end
+        end
+    end
+    return false
+end
+local function ApplyNoCooldown()
     pcall(function()
-        for i, v in next, getgc() do
-            if typeof(v) == "function" and getfenv(v).script == Player.Character:WaitForChild("Dodge") then
-                for i2, v2 in next, getupvalues(v) do
-                    if tostring(v2) == "0.4" then 
-                        setupvalue(v, i2, 0) 
-                    end
+        if DodgeFunc then
+            for i, v in next, getupvalues(DodgeFunc) do
+                if tostring(v) == "0.4" then 
+                    setupvalue(DodgeFunc, i, 0)
                 end
             end
         end
@@ -21,10 +33,11 @@ local function StartDodgeLoop()
         task.cancel(dodgeLoop)
         dodgeLoop = nil
     end
+    FindDodgeFunction()
     dodgeLoop = task.spawn(function()
         while DodgeNoCooldownEnabled do
-            NoCooldown()
-            task.wait(0.5)
+            ApplyNoCooldown()
+            task.wait(0.1)
         end
     end)
     print("[Dodge] Đã bật Dodge No Cooldown")
@@ -56,5 +69,4 @@ Player.CharacterAdded:Connect(function()
         StartDodgeLoop()
     end
 end)
-
 return DodgeNoCooldownModule
